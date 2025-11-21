@@ -14,6 +14,7 @@ SRC_URI = "git://github.com/wolfssl/wolfssl.git;nobranch=1;protocol=https;rev=de
 
 S = "${WORKDIR}/git"
 
+
 inherit autotools pkgconfig wolfssl-helper
 
 # Skip the package check for wolfssl itself (it's the base library)

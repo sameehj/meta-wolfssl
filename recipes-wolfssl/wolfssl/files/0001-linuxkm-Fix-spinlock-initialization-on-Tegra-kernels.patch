@@ -1,0 +1,54 @@
+From 5565433ef905b96c5fcfbce85212cac1254486b4 Mon Sep 17 00:00:00 2001
+From: Sameeh Jubran <sameeh@wolfssl.com>
+Date: Wed, 26 Nov 2025 05:37:19 +0000
+Subject: [PATCH] linuxkm: Fix spinlock initialization on Tegra kernels for
+ __SPIN_LOCK_UNLOCKED macro incompatibility
+
+Tegra vendor kernels (L4T / NVIDIA Yocto BSP) fail to compile the
+wolfSSL Linux kernel module due to the use of the legacy assignment form
+of the spinlock initializer:
+
+    m->lock = __SPIN_LOCK_UNLOCKED(m);
+
+On Tegra, __SPIN_LOCK_UNLOCKED() expands to a braced-struct initializer
+that is *not* valid as an assignment expression, causing:
+
+    error: expected expression before '{' token
+
+This patch applies a Tegra-specific workaround by replacing the
+assignment with the stable kernel API:
+
+    spin_lock_init(&m->lock);
+
+This is guarded behind CONFIG_ARCH_TEGRA so that non-Tegra platforms
+retain the current initialization behavior until further validation is
+completed.
+
+This fix restores successful kernel module builds on NVIDIA Tegra-based
+Yocto images without modifying behavior on other architectures.
+
+Signed-off-by: Sameeh Jubran <sameeh@wolfssl.com>
+---
+ linuxkm/linuxkm_wc_port.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/linuxkm/linuxkm_wc_port.h b/linuxkm/linuxkm_wc_port.h
+index 834e95819..a1d64fe36 100644
+--- a/linuxkm/linuxkm_wc_port.h
++++ b/linuxkm/linuxkm_wc_port.h
+@@ -1444,7 +1444,12 @@
+ 
+         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
+         {
++	/* Tegra vendor kernels do not support assignment of __SPIN_LOCK_UNLOCKED() */
++	# ifdef CONFIG_ARCH_TEGRA
++	    spin_lock_init(&m->lock);
++	# else
+             m->lock = __SPIN_LOCK_UNLOCKED(m);
++	#endif
+             m->irq_flags = 0;
+ 
+             return 0;
+-- 
+2.34.1
+
