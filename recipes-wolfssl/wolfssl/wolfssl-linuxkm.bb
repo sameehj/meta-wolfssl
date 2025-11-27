@@ -27,12 +27,17 @@ B = "${S}"
 # Build depends on the kernel
 DEPENDS += "virtual/kernel"
 
+# Don't split out debug symbols into .debug dirs for this recipe
+INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
+
 # Make sure we package the .ko
 PACKAGES = "${PN}"
 FILES:${PN} += "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/libwolfssl.ko"
+FILES:${PN} += "/etc/modules-load.d/wolfssl.conf"
 
 # Skip package QA warnings for kernel modules
 INSANE_SKIP:${PN} += "buildpaths debug-files"
+INSANE_SKIP:kernel-module-libwolfssl += "buildpaths"
 
 EXTRA_OECONF = " \
     --enable-linuxkm \
@@ -50,17 +55,6 @@ do_compile() {
 
     # build user mode build first
     oe_runmake
-
-
-    # ${S}/linuxkm contains Kbuild glue for libwolfssl.ko
-    # Build against the Yocto kernel headers in ${STAGING_KERNEL_BUILDDIR}
-    #oe_runmake \
-    #    ARCH=${KERNEL_ARCH} \
-    #    CROSS_COMPILE=${TARGET_PREFIX} \
-    #    KERNEL_SRC=${STAGING_KERNEL_DIR} \
-    #    -C ${STAGING_KERNEL_BUILDDIR} \
-    #    M=${S}/linuxkm \
-    #    modules
 }
 
 do_install() {
@@ -71,7 +65,8 @@ do_install() {
 
 # Remove debug directory if present
 do_install:append() {
-    rm -rf ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/.debug || true
+    install -d ${D}/etc/modules-load.d
+    echo "libwolfssl" > ${D}/etc/modules-load.d/wolfssl.conf
 }
 
 # Let module.bbclass handle the rest: depmod, packaging, etc.
