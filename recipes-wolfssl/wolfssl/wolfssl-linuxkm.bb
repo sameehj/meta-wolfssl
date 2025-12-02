@@ -5,7 +5,7 @@ DEPENDS += "virtual/kernel openssl-native"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
 # Build for target kernel
-inherit autotools pkgconfig wolfssl-helper module
+inherit autotools pkgconfig wolfssl-helper
 
 # Skip the package check for wolfssl itself (it's the base library)
 deltask do_wolfssl_check_package
@@ -31,13 +31,8 @@ DEPENDS += "virtual/kernel"
 INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 
 # Make sure we package the .ko
-PACKAGES = "${PN}"
 FILES:${PN} += "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/libwolfssl.ko"
 FILES:${PN} += "/etc/modules-load.d/wolfssl.conf"
-
-# Skip package QA warnings for kernel modules
-INSANE_SKIP:${PN} += "buildpaths debug-files"
-INSANE_SKIP:kernel-module-libwolfssl += "buildpaths"
 
 EXTRA_OECONF = " \
     --enable-linuxkm \
@@ -68,5 +63,21 @@ do_install:append() {
     install -d ${D}/etc/modules-load.d
     echo "libwolfssl" > ${D}/etc/modules-load.d/wolfssl.conf
 }
+
+# --> Yocto makes kernel-module-(module name) by default
+#PACKAGES = "${PN}"
+RDEPENDS:${PN} = ""
+
+# Provide alias so both names work
+RPROVIDES:${PN} = "kernel-module-libwolfssl"
+
+INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
+
+FILES:${PN} = "${nonarch_base_libdir}/modules \
+               ${sysconfdir}/modules-load.d"
+
+# Skip package QA warnings for kernel modules
+INSANE_SKIP:${PN} += "buildpaths debug-files"
+INSANE_SKIP:wolfssl-linuxkm += "buildpaths"
 
 # Let module.bbclass handle the rest: depmod, packaging, etc.
